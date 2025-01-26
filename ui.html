@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Attriextract</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background-color: #f0f0f0;
+    }
+    #container {
+      background-color: white;
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      margin-top: 0;
+      color: #333;
+    }
+    #generateButton {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+    #generateButton:hover {
+      background-color: #45a049;
+    }
+    #attributesDisplay {
+      margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      background-color: #f8f8f8;
+      padding: 10px;
+      border-radius: 4px;
+      border: 1px solid #ddd;
+    }
+    .layer-attributes {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid #ddd;
+    }
+    .layer-attributes:last-child {
+      border-bottom: none;
+    }
+    .layer-name {
+      font-weight: bold;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .attribute {
+      margin-bottom: 5px;
+    }
+    .attribute-name {
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    .attribute-value {
+      color: #34495e;
+    }
+    .copy-button {
+      margin-top: 10px;
+      padding: 5px 10px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s;
+    }
+    .copy-button:hover {
+      background-color: #2980b9;
+    }
+    #copyAllButton {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #9b59b6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      transition: background-color 0.3s;
+    }
+    #copyAllButton:hover {
+      background-color: #8e44ad;
+    }
+  </style>
+</head>
+<body>
+  <div id="container">
+    <h1>Attriextract Plugin</h1>
+    <p id="selectedLayer">No layer/frame/group selected.</p>
+    <button id="generateButton">Generate</button>
+    
+    <div id="attributesDisplay"></div>
+    <button id="copyAllButton" style="display: none;">Copy All</button>
+  </div>
+
+  <script>
+    const selectedLayer = document.getElementById('selectedLayer');
+    const generateButton = document.getElementById('generateButton');
+    const attributesDisplay = document.getElementById('attributesDisplay');
+    const copyAllButton = document.getElementById('copyAllButton');
+
+    let allAttributesData = [];
+
+    // Handle messages from the plugin code
+    window.onmessage = (event) => {
+      const { type, selection, allAttributes } = event.data.pluginMessage;
+
+      if (type === 'selection-change') {
+        selectedLayer.textContent = `Selected: ${selection.length} item(s)`;
+      } else if (type === 'no-selection') {
+        selectedLayer.textContent = 'No layer/frame/group selected.';
+      } else if (type === 'show-attributes') {
+        allAttributesData = allAttributes;
+        displayAttributes(allAttributes);
+      }
+    };
+
+    function displayAttributes(allAttributes) {
+      let html = '';
+      allAttributes.forEach((attributes, index) => {
+        html += `<div class="layer-attributes">`;
+        html += `<div class="layer-name">${attributes.name}</div>`;
+        for (const [key, value] of Object.entries(attributes)) {
+          if (key !== 'name') {
+            html += `<div class="attribute"><span class="attribute-name">${key}:</span> <span class="attribute-value">${value}</span></div>`;
+          }
+        }
+        html += `<button class="copy-button" data-index="${index}">Copy</button>`;
+        html += `</div>`;
+      });
+      attributesDisplay.innerHTML = html;
+      copyAllButton.style.display = allAttributes.length > 1 ? 'block' : 'none';
+
+      // Add event listeners to copy buttons
+      document.querySelectorAll('.copy-button').forEach(button => {
+        button.addEventListener('click', (e) => {
+          const index = e.target.getAttribute('data-index');
+          copyToClipboard(formatAttributes(allAttributes[index]));
+        });
+      });
+    }
+
+    // Send a message to the plugin code to generate attributes when clicked
+    generateButton.onclick = () => {
+      parent.postMessage({ pluginMessage: { type: 'generate-attributes' } }, '*');
+    };
+
+    copyAllButton.onclick = () => {
+      copyToClipboard(allAttributesData.map(formatAttributes).join('\n\n'));
+    };
+
+    function formatAttributes(attributes) {
+      let formattedText = `${attributes.name}\n`;
+      for (const [key, value] of Object.entries(attributes)) {
+        if (key !== 'name') {
+          formattedText += `${key}: ${value}\n`;
+        }
+      }
+      return formattedText.trim();
+    }
+
+    function copyToClipboard(text) {
+      const textArea = document.createElement('textarea');
+      textArea.value = text;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Copied to clipboard!');
+    }
+  </script>
+</body>
+</html>
